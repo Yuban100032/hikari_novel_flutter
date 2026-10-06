@@ -6,6 +6,7 @@ import 'package:hikari_novel_flutter/models/page_state.dart';
 import 'package:hikari_novel_flutter/widgets/state_page.dart';
 
 import '../../router/route_path.dart';
+import '../../service/api_service.dart';
 import 'controller.dart';
 
 class LoginPage extends StatelessWidget {
@@ -60,6 +61,7 @@ class LoginPage extends StatelessWidget {
                           initialSettings: controller.settings,
                           onWebViewCreated: (webController) {
                             controller.inAppWebViewController = webController;
+                            ApiService.instance.attachLoginBrowser(webController);
                           },
                           onLoadStart: (webController, webUri) {
                             controller.currentUrl.value = webUri.toString();

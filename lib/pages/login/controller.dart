@@ -82,6 +82,7 @@ class LoginController extends GetxController {
           _savingSession = false;
         }
 
+        ApiService.instance.attachLoginBrowser(null);
         Get.offAllNamed(RoutePath.main);
       }
     }

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import 'package:cookie_jar/cookie_jar.dart' as ckjar;
 import 'package:dio/dio.dart';
@@ -17,6 +18,7 @@ import 'package:hikari_novel_flutter/models/resource.dart';
 import '../common/log.dart';
 import 'local_storage_service.dart';
 import 'browser_session.dart';
+import 'browser_transport.dart';
 
 class ApiService extends GetxService {
   static ApiService get instance => Get.find<ApiService>();
@@ -28,6 +30,8 @@ class ApiService extends GetxService {
   Dio get dio => _client.dio;
 
   Future<void> initCookie() => _client.initCookie();
+
+  void attachLoginBrowser(InAppWebViewController? controller) => _client.browser.attachLoginBrowser(controller);
 
   void deleteCookie() => _client.deleteCookie();
 
@@ -274,6 +278,7 @@ class ApiService extends GetxService {
 }
 
 class _ApiClient {
+  final BrowserTransport browser = BrowserTransport();
   final ckjar.CookieJar _cookieJar = ckjar.CookieJar();
   late final Dio dio =
       Dio(BaseOptions(headers: kUserAgent, responseType: ResponseType.bytes, followRedirects: false, validateStatus: (status) => status != null))
@@ -289,7 +294,40 @@ class _ApiClient {
     await _cookieJar.saveFromResponse(origin, decodeBrowserSession(localCookie, origin));
   }
 
-  void deleteCookie() => _cookieJar.deleteAll();
+  void deleteCookie() {
+    _cookieJar.deleteAll();
+    browser.reset();
+  }
+
+  Future<Response<dynamic>> _browserResponse(String url, {String method = 'GET', Object? data}) async {
+    final origin = Uri.parse(LocalStorageService.instance.getWenku8Node().node);
+    String? body;
+    if (data is String) {
+      body = data;
+    } else if (data is Map) {
+      body = data.entries.expand((entry) {
+        final values = entry.value is List ? entry.value as List : [entry.value];
+        return values.map((value) =>
+            '${Uri.encodeQueryComponent(entry.key.toString())}=${Uri.encodeQueryComponent(value.toString())}');
+      }).join('&');
+    }
+    final result = await browser.request(origin, url, method: method, body: body);
+    final request = RequestOptions(path: url, method: method);
+    if (result['challenge'] == true) {
+      throw CloudflareChallengeException(requestOptions: request);
+    }
+    if (result['status'] == 403) {
+      throw Cloudflare403Exception(requestOptions: request);
+    }
+    if ((result['status'] as num) >= 400) {
+      throw DioException(requestOptions: request, message: 'Website returned HTTP ${result['status']}');
+    }
+    return Response<dynamic>(
+      requestOptions: request,
+      statusCode: (result['status'] as num).toInt(),
+      data: BrowserTransport.decodeBody(result),
+    );
+  }
 
   Future<Resource> getCommonData(String url) async {
     try {
@@ -311,7 +349,7 @@ class _ApiClient {
       }
 
       Log.d("$url ${charsetType.name}");
-      final response = await dio.get(url);
+      final response = GetPlatform.isAndroid ? await _browserResponse(url) : await dio.get(url);
       final raw = await _checkRedirects(response) as Uint8List;
       late String decodedHtml;
       switch (charsetType) {
@@ -341,7 +379,9 @@ class _ApiClient {
 
   Future<Resource> postForm(String url, {required Object? data, required CharsetType charsetType}) async {
     try {
-      final response = await dio.post(
+      final response = GetPlatform.isAndroid
+          ? await _browserResponse(url, method: 'POST', data: data)
+          : await dio.post(
         url,
         data: data,
         options: Options(contentType: Headers.formUrlEncodedContentType),

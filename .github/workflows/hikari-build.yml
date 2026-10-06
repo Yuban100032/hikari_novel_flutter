@@ -7,7 +7,7 @@ on:
     paths:
       - '.github/workflows/hikari-build.yml'
       - 'lib/**'
-      - 'test/browser_session_test.dart'
+      - 'test/browser*'
 
 permissions:
   contents: read
@@ -41,6 +41,9 @@ jobs:
 
       - name: Test browser session transfer
         run: flutter test test/browser_session_test.dart
+
+      - name: Test browser HTTP transport
+        run: node --test test/browser_fetch_test.cjs
 
       - name: Build release ARM64 APK
         run: flutter build apk --release --target-platform android-arm64 --split-per-abi
