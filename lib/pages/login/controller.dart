@@ -48,7 +48,7 @@ class LoginController extends GetxController {
       final getCookie = await cookieManager.getCookies(url: uri);
 
       bool hasCookie = ["jieqiUserInfo", "jieqiVisitInfo"].every(
-        (keyword) => getCookie.any((cookieItem) => cookieItem.name.contains(keyword)),
+        (keyword) => getCookie.any((cookieItem) => cookieItem.name == keyword),
       ); //getCookie.any((cookieItem) => cookieItem.name == "jieqiUserInfo");
       if (hasCookie) {
         if (_savingSession) return;
