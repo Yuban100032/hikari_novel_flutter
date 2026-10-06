@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'dart:ui';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' show InAppWebViewController;
 
 import 'package:cookie_jar/cookie_jar.dart' as ckjar;
 import 'package:dio/dio.dart';
