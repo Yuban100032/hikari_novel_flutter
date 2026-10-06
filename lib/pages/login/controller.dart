@@ -30,6 +30,19 @@ class LoginController extends GetxController {
   Rx<PageState> pageState = PageState.success.obs;
   String errorMsg = "";
   bool _savingSession = false;
+  bool _inspectingFailure = false;
+  String? _failedPage;
+
+  Future<void> inspectFailurePage() async {
+    final browser = inAppWebViewController;
+    if (browser == null) return;
+    _inspectingFailure = true;
+    pageState.value = PageState.success;
+    final origin = Uri.parse(ApiService.instance.wenku8Node.node);
+    await browser.loadUrl(
+      urlRequest: URLRequest(url: WebUri(origin.resolve(_failedPage ?? '/userdetail.php').toString())),
+    );
+  }
 
   String get url => "${ApiService.instance.wenku8Node.node}/login.php";
 
@@ -41,7 +54,7 @@ class LoginController extends GetxController {
 
   Future<void> saveCookie(WebUri uri) async {
     showLoading.value = false;
-    if (_savingSession) return;
+    if (_savingSession || _inspectingFailure) return;
 
     //存储cookie
     if (uri.host == Uri.parse(ApiService.instance.wenku8Node.node).host) {
@@ -60,21 +73,20 @@ class LoginController extends GetxController {
         );
         LocalStorageService.instance.setCookie(cookie);
 
+        var phase = '保存登录会话';
         try {
           await ApiService.instance.initCookie();
+          phase = '读取用户资料';
           await _getUserInfo();
+          phase = '同步书架';
           await _refreshBookshelf();
         } catch (e) {
           LocalStorageService.instance.setCookie(null); //清空cookie
           ApiService.instance.deleteCookie();
 
-          final controller = inAppWebViewController;
-          if (controller != null) {
-            inAppWebViewController = null;
-            controller.dispose(); //销毁webview，停止加载网页
-          }
+          // Keep the visible browser for inspecting the failed page by navigation.
 
-          errorMsg = e.toString();
+          errorMsg = '诊断版本 D2\n失败阶段：$phase\n${e.toString()}';
           pageState.value = PageState.error;
 
           return;
@@ -124,7 +136,8 @@ class LoginController extends GetxController {
         }
       case Error():
         {
-          throw result.error;
+          _failedPage ??= '/modules/article/bookcase.php?classid=$index';
+          throw StateError('书架编号：$index\n${result.error}');
         }
     }
   }

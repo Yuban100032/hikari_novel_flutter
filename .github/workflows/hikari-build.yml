@@ -40,10 +40,13 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Test browser session transfer
-        run: flutter test test/browser_session_test.dart
+        run: flutter test test/browser_session_test.dart test/browser_diagnostic_test.dart
 
       - name: Test browser HTTP transport
         run: node --test test/browser_fetch_test.cjs
+
+      - name: Analyze changed login and network files
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/service/api_service.dart lib/service/browser_transport.dart lib/service/network_diagnostic.dart lib/pages/login/controller.dart lib/pages/login/view.dart
 
       - name: Build release ARM64 APK
         run: flutter build apk --release --target-platform android-arm64 --split-per-abi

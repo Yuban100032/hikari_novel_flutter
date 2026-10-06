@@ -102,7 +102,20 @@ class LoginPage extends StatelessWidget {
             Obx(
               () => Offstage(
                 offstage: controller.pageState.value != PageState.error,
-                child: ErrorMessage(msg: controller.errorMsg, action: () => Get.offAllNamed(RoutePath.welcome), buttonText: "re_login".tr),
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ErrorMessage(msg: controller.errorMsg, action: () => Get.offAllNamed(RoutePath.welcome), buttonText: "re_login".tr),
+                        TextButton(
+                          onPressed: controller.inspectFailurePage,
+                          child: const Text('在应用内查看该页面'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

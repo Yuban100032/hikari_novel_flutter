@@ -43,3 +43,11 @@ test('403 challenge remains visible instead of being treated as successful HTML'
   assert.equal(result.status, 403);
   assert.equal(result.challenge, true);
 });
+
+test('ordinary 403 is distinguished and returns response correlation metadata', async () => {
+  const result = await execute('https://www.wenku8.net/userdetail.php', 'GET', null,
+    async () => new Response('forbidden', { status: 403, headers: { 'cf-ray': 'abcdef0123456789-HKG' } }));
+  assert.equal(result.status, 403);
+  assert.equal(result.challenge, false);
+  assert.equal(result.ray, 'abcdef0123456789-HKG');
+});

@@ -19,6 +19,7 @@ import '../common/log.dart';
 import 'local_storage_service.dart';
 import 'browser_session.dart';
 import 'browser_transport.dart';
+import 'network_diagnostic.dart';
 
 class ApiService extends GetxService {
   static ApiService get instance => Get.find<ApiService>();
@@ -313,14 +314,11 @@ class _ApiClient {
     }
     final result = await browser.request(origin, url, method: method, body: body);
     final request = RequestOptions(path: url, method: method);
-    if (result['challenge'] == true) {
-      throw CloudflareChallengeException(requestOptions: request);
-    }
-    if (result['status'] == 403) {
-      throw Cloudflare403Exception(requestOptions: request);
-    }
-    if ((result['status'] as num) >= 400) {
-      throw DioException(requestOptions: request, message: 'Website returned HTTP ${result['status']}');
+    if (result['challenge'] == true || (result['status'] as num) >= 400) {
+      throw DioException(
+        requestOptions: request,
+        message: formatWebsiteFailure(Uri.parse(url), result),
+      );
     }
     return Response<dynamic>(
       requestOptions: request,

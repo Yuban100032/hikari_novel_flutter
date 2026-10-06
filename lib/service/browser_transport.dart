@@ -33,7 +33,8 @@ try {
   return {
     status: response.status,
     body: btoa(binary),
-    challenge: response.headers.get("cf-mitigated") === "challenge"
+    challenge: response.headers.get("cf-mitigated") === "challenge",
+    ray: response.headers.get("cf-ray")
   };
 } finally {
   clearTimeout(timer);
