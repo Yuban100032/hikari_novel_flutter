@@ -16,6 +16,7 @@ import '../../models/resource.dart';
 import '../../parser/parser.dart';
 import '../../service/db_service.dart';
 import '../../service/local_storage_service.dart';
+import '../../service/browser_session.dart';
 
 class LoginController extends GetxController {
   RxBool showLoading = true.obs;
@@ -28,6 +29,7 @@ class LoginController extends GetxController {
 
   Rx<PageState> pageState = PageState.success.obs;
   String errorMsg = "";
+  bool _savingSession = false;
 
   String get url => "${ApiService.instance.wenku8Node.node}/login.php";
 
@@ -39,21 +41,27 @@ class LoginController extends GetxController {
 
   Future<void> saveCookie(WebUri uri) async {
     showLoading.value = false;
+    if (_savingSession) return;
 
     //存储cookie
-    if (uri.toString().contains("wenku8") == true) {
+    if (uri.host == Uri.parse(ApiService.instance.wenku8Node.node).host) {
       final getCookie = await cookieManager.getCookies(url: uri);
 
       bool hasCookie = ["jieqiUserInfo", "jieqiVisitInfo"].every(
         (keyword) => getCookie.any((cookieItem) => cookieItem.name.contains(keyword)),
       ); //getCookie.any((cookieItem) => cookieItem.name == "jieqiUserInfo");
       if (hasCookie) {
-        String cookie = "jieqiUserInfo=${getCookie.firstWhere((cookieItem) => cookieItem.name == "jieqiUserInfo").value};";
-        cookie += "jieqiVisitInfo=${getCookie.firstWhere((cookieItem) => cookieItem.name == "jieqiVisitInfo").value}";
+        if (_savingSession) return;
+        _savingSession = true;
+        // Include the verification cookies issued by this WebView, not just account cookies.
+        final cookie = encodeBrowserSession(
+          Uri.parse(ApiService.instance.wenku8Node.node),
+          {for (final item in getCookie) item.name: item.value},
+        );
         LocalStorageService.instance.setCookie(cookie);
-        ApiService.instance.initCookie();
 
         try {
+          await ApiService.instance.initCookie();
           await _getUserInfo();
           await _refreshBookshelf();
         } catch (e) {
@@ -70,6 +78,8 @@ class LoginController extends GetxController {
           pageState.value = PageState.error;
 
           return;
+        } finally {
+          _savingSession = false;
         }
 
         Get.offAllNamed(RoutePath.main);

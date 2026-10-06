@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/hikari-build.yml'
+      - 'lib/**'
+      - 'test/browser_session_test.dart'
 
 permissions:
   contents: read
@@ -36,6 +38,9 @@ jobs:
 
       - name: Generate source files
         run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Test browser session transfer
+        run: flutter test test/browser_session_test.dart
 
       - name: Build release ARM64 APK
         run: flutter build apk --release --target-platform android-arm64 --split-per-abi

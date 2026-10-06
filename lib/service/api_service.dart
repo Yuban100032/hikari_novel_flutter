@@ -16,6 +16,7 @@ import 'package:hikari_novel_flutter/models/resource.dart';
 
 import '../common/log.dart';
 import 'local_storage_service.dart';
+import 'browser_session.dart';
 
 class ApiService extends GetxService {
   static ApiService get instance => Get.find<ApiService>();
@@ -26,7 +27,7 @@ class ApiService extends GetxService {
 
   Dio get dio => _client.dio;
 
-  void initCookie() => _client.initCookie();
+  Future<void> initCookie() => _client.initCookie();
 
   void deleteCookie() => _client.deleteCookie();
 
@@ -279,17 +280,13 @@ class _ApiClient {
         ..interceptors.add(_CloudflareInterceptor())
         ..interceptors.add(CookieManager(_cookieJar));
 
-  void initCookie() {
+  Future<void> initCookie() async {
+    await _cookieJar.deleteAll();
     final localCookie = LocalStorageService.instance.getCookie();
     if (localCookie == null) return;
 
-    final cookies = localCookie.split(';').map((e) => e.trim()).where((e) => e.contains('=')).map((e) {
-      final kv = e.split('=');
-      return ckjar.Cookie(kv[0], kv.sublist(1).join('='));
-    }).toList();
-
-    _cookieJar.saveFromResponse(Uri.parse(Wenku8Node.wwwWenku8Cc.node), cookies);
-    _cookieJar.saveFromResponse(Uri.parse(Wenku8Node.wwwWenku8Net.node), cookies);
+    final origin = Uri.parse(LocalStorageService.instance.getWenku8Node().node);
+    await _cookieJar.saveFromResponse(origin, decodeBrowserSession(localCookie, origin));
   }
 
   void deleteCookie() => _cookieJar.deleteAll();
