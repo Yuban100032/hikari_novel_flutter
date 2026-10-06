@@ -1,0 +1,62 @@
+name: Hikari Android ARM64 APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hikari-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.4'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate source files
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build release ARM64 APK
+        run: flutter build apk --release --target-platform android-arm64 --split-per-abi
+
+      - name: Verify and name APK
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/hikari-arm64-v8a.apk
+          unzip -l dist/hikari-arm64-v8a.apk | grep 'lib/arm64-v8a/libapp.so'
+          if unzip -l dist/hikari-arm64-v8a.apk | grep -E 'lib/(armeabi-v7a|x86|x86_64)/'; then
+            echo "Unexpected architecture in ARM64 APK"
+            exit 1
+          fi
+          cd dist
+          sha256sum hikari-arm64-v8a.apk > hikari-arm64-v8a.apk.sha256
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hikari-android-arm64
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
